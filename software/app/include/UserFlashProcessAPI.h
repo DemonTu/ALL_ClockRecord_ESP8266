@@ -1,11 +1,6 @@
 #ifndef __USERRFIDAPI_H
 	#define __USERRFIDAPI_H
 
-#define RFID_LED1_IO_MUX     PERIPHS_IO_MUX_MTDO_U
-#define RFID_LED1_IO_NUM     15
-#define RFID_LED1_IO_FUNC    FUNC_GPIO15
-
-
 typedef struct
 {
 	uint16_t startFlag;
@@ -26,6 +21,10 @@ extern SYSTEMPARA_STR sysPara;
 void userFlashPro_Init(void);
 
 void sysTemParaSave(void);
+
+void userParaSave(PARASAVE_STR *para);
+void userParaRead(PARASAVE_STR *para, uint32_t recordCnt);
+uint32_t UserGetAllRecordNum(void);
 
 
 #endif	

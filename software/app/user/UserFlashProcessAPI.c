@@ -48,19 +48,25 @@ void ICACHE_FLASH_ATTR
 sysTemParaSave(void)
 {
 	spi_flash_erase_sector(SYSPARA_START_ADDR/4096);
-	spi_flash_write(SYSPARA_START_ADDR, (uint32_t *)&sysPara, sizeof(SYSTEMPARA_STR));	
+	spi_flash_write(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));	
 }
 
 LOCAL void ICACHE_FLASH_ATTR
 sysTemParaInit()
 {
-	spi_flash_read(SYSPARA_START_ADDR, (uint32_t *)&sysPara, sizeof(SYSTEMPARA_STR));
-	if (sysPara.saveFlag != 0xaabbccdd)
+	uint32_t chipID = 0;
+	
+	chipID = system_get_chip_id();
+	os_printf("ID=0x%x", chipID);
+	spi_flash_read(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
+	if (sysPara.saveFlag != 0xaabbccee)
 	{
-		sysPara.saveFlag    = 0xaabbccdd;
+		sysPara.saveFlag    = 0xaabbccee;
 		sysPara.currentAddr = PARASVAE_START_ADDR;
+		os_memcpy(sysPara.deviceID, (uint8_t *)&chipID, 4);
+		
 		spi_flash_erase_sector(SYSPARA_START_ADDR/4096);
-		spi_flash_write(SYSPARA_START_ADDR, (uint32_t *)&sysPara, sizeof(SYSTEMPARA_STR));
+		spi_flash_write(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
 	}
 }
 /***************** END sysTemPara ********************************/
@@ -70,7 +76,7 @@ sysTemParaInit()
 *
 *提供所有记录可查询, 需要传入将查询的记录数目，获取最新的记录
 *
-*************************************************************/
+*******************************************************************/
 
 void ICACHE_FLASH_ATTR
 userParaSave(PARASAVE_STR *para)
@@ -79,7 +85,7 @@ userParaSave(PARASAVE_STR *para)
 	{
 		spi_flash_erase_sector(sysPara.currentAddr/4096);
 	}
-	spi_flash_write(sysPara.currentAddr, (uint32_t *)para, sizeof(PARASAVE_STR));
+	spi_flash_write(sysPara.currentAddr, (uint32 *)para, sizeof(PARASAVE_STR));
 
 	sysPara.currentAddr += sizeof(PARASAVE_STR);
 	sysTemParaSave();
@@ -89,14 +95,30 @@ void ICACHE_FLASH_ATTR
 userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 {	
 	uint32_t readAddr;
-	readAddr = sysPara.currentAddr-recordCnt*sizeof(PARASAVE_STR);
-	if (readAddr < PARASVAE_START_ADDR)
+	if (sysPara.currentAddr <= (recordCnt*sizeof(PARASAVE_STR)))
 	{
 		return;
 	}
-	spi_flash_read(readAddr, (uint32_t *)para, sizeof(PARASAVE_STR));
+	else
+	{
+		readAddr = sysPara.currentAddr-recordCnt*sizeof(PARASAVE_STR);
+		if (readAddr < PARASVAE_START_ADDR)
+		{
+			return;
+		}
+		spi_flash_read(readAddr, (uint32 *)para, sizeof(PARASAVE_STR));
+	}
 }
 
+uint32_t ICACHE_FLASH_ATTR
+UserGetAllRecordNum(void)
+{
+	return ((sysPara.currentAddr-PARASVAE_START_ADDR)/sizeof(PARASAVE_STR) );
+}
+//===================================================
+#define RFID_LED1_IO_MUX     PERIPHS_IO_MUX_MTDO_U
+#define RFID_LED1_IO_NUM     15
+#define RFID_LED1_IO_FUNC    FUNC_GPIO15
 
 LOCAL os_timer_t flash_timer;
 

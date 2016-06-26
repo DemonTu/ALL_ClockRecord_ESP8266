@@ -3,10 +3,13 @@
 #include "os_type.h"
 
 #include "gpio.h"
+#include "user_interface.h"
 
 /* BSP library */
 #include "driver/i2c_master.h"
 #include "UserDS1302DriverAPI.h"
+
+
 //=======================================================
 #define DS1302_RST_IO_MUX     PERIPHS_IO_MUX_MTCK_U
 #define DS1302_RST_IO_NUM     13
@@ -194,14 +197,14 @@ void Ds1302_Read_Time(void)
 { 
    	unsigned char i,tmp;
 	
-	time_buf[7]=Ds1302_Read_Byte(ds1302_day_add);		//周 
-	time_buf[1]=Ds1302_Read_Byte(ds1302_year_add);		//年
-	time_buf[2]=Ds1302_Read_Byte(ds1302_month_add);		//月 
-	time_buf[3]=Ds1302_Read_Byte(ds1302_date_add);		//日 
-	time_buf[4]=Ds1302_Read_Byte(ds1302_hr_add);		//时 
-	time_buf[5]=Ds1302_Read_Byte(ds1302_min_add);		//分 
+	time_buf[7]=Ds1302_Read_Byte(ds1302_day_add);		 //周 
+	time_buf[1]=Ds1302_Read_Byte(ds1302_year_add);		 //年
+	time_buf[2]=Ds1302_Read_Byte(ds1302_month_add);		 //月 
+	time_buf[3]=Ds1302_Read_Byte(ds1302_date_add);		 //日 
+	time_buf[4]=Ds1302_Read_Byte(ds1302_hr_add);		 //时 
+	time_buf[5]=Ds1302_Read_Byte(ds1302_min_add);		 //分 
 	time_buf[6]=(Ds1302_Read_Byte(ds1302_sec_add))&0x7F;//秒 
-	time_buf[7]=Ds1302_Read_Byte(ds1302_day_add);		//周 
+	time_buf[7]=Ds1302_Read_Byte(ds1302_day_add);		 //周 
 
 	for(i=0;i<8;i++)
 	{           //BCD处理
@@ -210,16 +213,12 @@ void Ds1302_Read_Time(void)
 		time_buf1[i]=time_buf[i]%16;
 		time_buf1[i]=time_buf1[i]+tmp*10;
 	}
-	
-	//os_printf("\r\n");
+	os_printf("\r\n");
 }
 void userDS1302ReadTime(TIME_STR *time)
 {
-	system_soft_wdt_stop();
 	Ds1302_Read_Time();
 	os_memcpy((uint8_t *)time, &time_buf1[1], sizeof(TIME_STR));
-    //os_printf("20%02d/%d/%d\r\n %02d:%02d:%02d\r\n", time->year, time->month, time->data, time->hour, time->minute, time_buf1[6]);
-	system_soft_wdt_restart();
 }
 /*------------------------------------------------
                 DS1302初始化
@@ -229,7 +228,8 @@ void Ds1302_Init(void)
 	
 	RST_CLR();			//RST脚置低
 	SCK_CLR();
-    //Ds1302_Write_Byte(ds1302_sec_add,0x00);
+    Ds1302_Write_Byte(ds1302_sec_add,0x00);
+#if 0	
     //Ds1302_Write_Time();
 	{
 		TIME_STR timeTemp;
@@ -240,6 +240,7 @@ void Ds1302_Init(void)
 		timeTemp.minute = 59;
 		userDS1302WriteTime(&timeTemp);
 	}
+#endif
 }
 
 void ICACHE_FLASH_ATTR
@@ -248,7 +249,7 @@ UserDS1302Process(uint8_t flag)
 	TIME_STR timeTemp;
 	//Ds1302_Read_Time();
 	userDS1302ReadTime(&timeTemp);
-	os_printf("20%02d/%d/%d\r\n %02d:%02d:%02d\r\n", timeTemp.year, timeTemp.month, timeTemp.data, timeTemp.hour, timeTemp.minute, time_buf1[6]);
+	os_printf("20%02d/%d/%d  %02d:%02d:%02d\r\n", timeTemp.year, timeTemp.month, timeTemp.data, timeTemp.hour, timeTemp.minute, time_buf1[6]);
 	
 }
 

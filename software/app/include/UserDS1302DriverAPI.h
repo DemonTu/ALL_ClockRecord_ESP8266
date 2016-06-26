@@ -25,8 +25,8 @@ typedef struct
                 DS1302≥ı ºªØ
 ------------------------------------------------*/
 extern void userDS12302_Init(void);
-
-
+extern void userDS1302ReadTime(TIME_STR *time);
+extern void userDS1302WriteTime(TIME_STR *time);
 #endif
 /**************************************************************************************************/
 

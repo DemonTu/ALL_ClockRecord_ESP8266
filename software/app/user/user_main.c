@@ -14,16 +14,14 @@
 #include "user_interface.h"
 
 #include "user_devicefind.h"
-#include "user_webserver.h"
 
 #include "driver/uart.h"
 // user device
 #include "UserDS1302DriverAPI.h"
 #include "UserFlashProcessAPI.h"
 #include "UserKeyDeviceAPI.h"
-#if ESP_PLATFORM
-#include "user_esp_platform.h"
-#endif
+#include "userSensorDetection.h"
+
 
 void user_rf_pre_init(void)
 {
@@ -96,39 +94,24 @@ void user_init(void)
 	
     os_printf("\r\nSDK version:%s\r\n", system_get_sdk_version());
 	os_printf("system Freq=%dMhz\r\n", system_get_cpu_freq());
-	os_printf("heapsize=%d\r\n", system_get_free_heap_size());
+	//os_printf("heapsize=%d\r\n", system_get_free_heap_size());
 // user device
 	userFlashPro_Init();
 	userDS12302_Init();
 	userKeyDevice_Init();
+	user_SensorDetection_Init();
 	
-#if ESP_PLATFORM
-    /*Initialization of the peripheral drivers*/
-    /*For light demo , it is user_light_init();*/
-    /* Also check whether assigned ip addr by the router.If so, connect to ESP-server  */
-   // user_esp_platform_init();
-
-
+//=======================================================
+	/* 设置WiFi为STA模式，连接指定的AP */
 	user_set_station_config();
 	wifi_set_event_handler_cb(wifi_handle_event_cb);
-
 	wifi_set_opmode(STATION_MODE);
+	
     os_printf("sta=%d\r\n", wifi_get_opmode());
-#endif
+//========================================================	
     /*Establish a udp socket to receive local device detect info.*/
     /*Listen to the port 1025, as well as udp broadcast.
     /*If receive a string of device_find_request, it rely its IP address and MAC.*/
     user_devicefind_init();
-
-    /*Establish a TCP server for http(with JSON) POST or GET command to communicate with the device.*/
-    /*You can find the command in "2B-SDK-Espressif IoT Demo.pdf" to see the details.*/
-    /*the JSON command for curl is like:*/
-    /*3 Channel mode: curl -X POST -H "Content-Type:application/json" -d "{\"period\":1000,\"rgb\":{\"red\":16000,\"green\":16000,\"blue\":16000}}" http://192.168.4.1/config?command=light      */
-    /*5 Channel mode: curl -X POST -H "Content-Type:application/json" -d "{\"period\":1000,\"rgb\":{\"red\":16000,\"green\":16000,\"blue\":16000,\"cwhite\":3000,\"wwhite\",3000}}" http://192.168.4.1/config?command=light      */
-#ifdef SERVER_SSL_ENABLE
-    user_webserver_init(SERVER_SSL_PORT);
-#else
-    user_webserver_init(SERVER_PORT);
-#endif
 }
 

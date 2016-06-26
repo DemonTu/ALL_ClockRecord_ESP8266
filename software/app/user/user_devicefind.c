@@ -15,27 +15,72 @@
 #include "user_interface.h"
 
 #include "espconn.h"
-#include "user_json.h"
+//#include "user_json.h"
 #include "user_devicefind.h"
 
-const char *device_find_request = "Are You Espressif IOT Smart Device?";
-#if PLUG_DEVICE
-const char *device_find_response_ok = "I'm Plug.";
-#elif LIGHT_DEVICE
-const char *device_find_response_ok = "I'm Light.";
-#elif SENSOR_DEVICE
-#if HUMITURE_SUB_DEVICE
-const char *device_find_response_ok = "I'm Humiture.";
-#elif FLAMMABLE_GAS_SUB_DEVICE
-const char *device_find_response_ok = "I'm Flammable Gas.";
-#endif
-#else
-const char *device_find_response_ok = "No Device";
-
-#endif
+// user device
+#include "UserDS1302DriverAPI.h"
+#include "UserFlashProcessAPI.h"
+#include "UserKeyDeviceAPI.h"
+#include "userSensorDetection.h"
 
 /*---------------------------------------------------------------------------*/
 LOCAL struct espconn ptrespconn;
+
+/*--------------------------------------------------------------------
+*  crc(2byte) head(1byte)	cmd(1byte)	len(2byte)	data(len byte)
+*  注: crc只包含data
+*--------------------------------------------------------------------*/
+typedef struct
+{
+	uint16_t crc;
+	uint8_t  head;
+	uint8_t  cmd;
+	uint16_t len;
+//    uint8_t *dat; 	
+}DataStr;
+
+#define FIND_DEVICE			0x80
+#define SET_DEVICE_ID		0x81
+#define SYNC_SYSTEM_TIME	0x82
+#define READ_DEVICE_PARA	0x83
+
+#define ACK_OK				0x10
+#define ACK_ERROR			0x11
+/******************************************************************************
+ * FunctionName : udpDataPacket
+ * Description  : Packeting udp data to send
+ * Parameters   : arg -- Additional argument to pass to the callback function
+ *                pusrdata -- The received data (or NULL when the connection has been closed!)
+ *                length -- The length of received data
+ * Returns      : none
+*******************************************************************************/
+LOCAL void ICACHE_FLASH_ATTR
+udpDataPacket(uint8_t *sendBuf, uint16_t len, uint8_t cmd)
+{
+	remot_info *premot = NULL;
+	uint16_t length=0;
+	uint8_t sendDeviceBuffer[60];
+
+	/* crc */
+	
+	sendDeviceBuffer[2] = 0xAA;
+	sendDeviceBuffer[3] = cmd;
+	sendDeviceBuffer[4] = len;
+	length += sizeof(DataStr);
+	if (len)
+	{
+		os_memcpy(&sendDeviceBuffer[length], sendBuf, len);
+		length += len;
+	}
+	if (espconn_get_connection_info(&ptrespconn, &premot, 0) != ESPCONN_OK)
+	{
+		return;
+	}
+	os_memcpy(ptrespconn.proto.udp->remote_ip, premot->remote_ip, 4);
+	ptrespconn.proto.udp->remote_port = premot->remote_port;
+	espconn_sent(&ptrespconn, sendDeviceBuffer, length);
+}
 
 /******************************************************************************
  * FunctionName : user_devicefind_recv
@@ -48,11 +93,13 @@ LOCAL struct espconn ptrespconn;
 LOCAL void ICACHE_FLASH_ATTR
 user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 {
-    char DeviceBuffer[40] = {0};
-    char Device_mac_buffer[60] = {0};
+    char DeviceBuffer[60] = {0};
+	unsigned short datLen=0;
     char hwaddr[6];
-    remot_info *premot = NULL;
     struct ip_info ipconfig;
+	DataStr datAnalyze;
+
+	char sendFlag=0;
 
     if (wifi_get_opmode() != STATION_MODE) {
         wifi_get_ip_info(SOFTAP_IF, &ipconfig);
@@ -70,40 +117,68 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
     if (pusrdata == NULL) {
         return;
     }
+	else if (length < sizeof(DataStr))
+	{
+		return;
+	}
+	datAnalyze.head = pusrdata[2];
+	datAnalyze.cmd = pusrdata[3];
+	datAnalyze.len = (pusrdata[4]<<8)|pusrdata[5];
+	os_printf("len=%d\r\n", datAnalyze.len);
+	switch(datAnalyze.cmd)
+	{
+		case FIND_DEVICE:
+			if (0 == datAnalyze.len)
+			{
+				/* 初始通信用 */
+				os_memcpy(DeviceBuffer, sysPara.deviceID, sizeof(sysPara.deviceID));		
+				os_memcpy(&DeviceBuffer[sizeof(sysPara.deviceID)], hwaddr, 6);		
+				os_memcpy(&DeviceBuffer[sizeof(sysPara.deviceID)+6], &ipconfig.ip, 4);		
+				datLen = sizeof(sysPara.deviceID)+10;
+				sendFlag = 1;
+			}
+			else if ((datAnalyze.len == sizeof(sysPara.deviceID)) &&
+				(0==os_memcmp(sysPara.deviceID, &pusrdata[6], datAnalyze.len)))
+			{
+				/* 应答 */
+				os_memcpy(&DeviceBuffer[0], hwaddr, 6);		
+				os_memcpy(&DeviceBuffer[6], &ipconfig.ip, 4);	
+				datLen = 10;
+				sendFlag = 1;
+			}
+			break;
+		case SET_DEVICE_ID:
+			os_memcpy(sysPara.deviceID, &pusrdata[sizeof(datAnalyze)], datAnalyze.len);
+			sysTemParaSave();
+			datLen = 0;
+			sendFlag = 1;
+			break;
+		case SYNC_SYSTEM_TIME:
+			{
+				TIME_STR timeTemp;
+				
+				timeTemp.year   = pusrdata[sizeof(DataStr)];
+				timeTemp.month  = pusrdata[sizeof(DataStr)+1];
+				timeTemp.data   = pusrdata[sizeof(DataStr)+2];
+				timeTemp.hour   = pusrdata[sizeof(DataStr)+3];
+				timeTemp.minute = pusrdata[sizeof(DataStr)+4];
 
-    if (length == os_strlen(device_find_request) &&
-            os_strncmp(pusrdata, device_find_request, os_strlen(device_find_request)) == 0) {
-        os_sprintf(DeviceBuffer, "%s" MACSTR " " IPSTR, device_find_response_ok,
-                   MAC2STR(hwaddr), IP2STR(&ipconfig.ip));
+				userDS1302WriteTime(&timeTemp);
+				datLen = 0;
+				sendFlag = 1;
+			}
+			break;
+		case READ_DEVICE_PARA:
+			break;
 
-        os_printf("%s\n", DeviceBuffer);
-        length = os_strlen(DeviceBuffer);
-        if (espconn_get_connection_info(&ptrespconn, &premot, 0) != ESPCONN_OK)
-        	return;
-        os_memcpy(ptrespconn.proto.udp->remote_ip, premot->remote_ip, 4);
-        ptrespconn.proto.udp->remote_port = premot->remote_port;
-        espconn_sent(&ptrespconn, DeviceBuffer, length);
-    } else if (length == (os_strlen(device_find_request) + 18)) {
-        os_sprintf(Device_mac_buffer, "%s " MACSTR , device_find_request, MAC2STR(hwaddr));
-        os_printf("%s", Device_mac_buffer);
+		default:
+			break;
+	}
+    if (sendFlag) 
+    {
+		udpDataPacket(DeviceBuffer, datLen, ACK_OK);
+	}
 
-        if (os_strncmp(Device_mac_buffer, pusrdata, os_strlen(device_find_request) + 18) == 0) {
-            //os_printf("%s\n", Device_mac_buffer);
-            length = os_strlen(DeviceBuffer);
-            os_sprintf(DeviceBuffer, "%s" MACSTR " " IPSTR, device_find_response_ok,
-                       MAC2STR(hwaddr), IP2STR(&ipconfig.ip));
-
-            os_printf("%s\n", DeviceBuffer);
-            length = os_strlen(DeviceBuffer);
-			if (espconn_get_connection_info(&ptrespconn, &premot, 0) != ESPCONN_OK)
-				return;
-			os_memcpy(ptrespconn.proto.udp->remote_ip, premot->remote_ip, 4);
-			ptrespconn.proto.udp->remote_port = premot->remote_port;
-            espconn_sent(&ptrespconn, DeviceBuffer, length);
-        } else {
-            return;
-        }
-    }
 }
 
 /******************************************************************************
