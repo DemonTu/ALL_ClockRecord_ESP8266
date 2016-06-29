@@ -61,7 +61,7 @@ udpDataPacket(uint8_t *sendBuf, uint16_t len, uint8_t cmd)
 	remot_info *premot = NULL;
 	uint16_t length=0;
 	uint8_t sendDeviceBuffer[60];
-
+	uint16_t crcTemp;
 	/* crc */
 	
 	sendDeviceBuffer[2] = 0xAA;
@@ -73,6 +73,9 @@ udpDataPacket(uint8_t *sendBuf, uint16_t len, uint8_t cmd)
 		os_memcpy(&sendDeviceBuffer[length], sendBuf, len);
 		length += len;
 	}
+	crcTemp = Crc16_1021_Sum(&sendDeviceBuffer[2], (length-2));
+	U16_To_BigEndingBuf(sendDeviceBuffer, crcTemp);
+	
 	if (espconn_get_connection_info(&ptrespconn, &premot, 0) != ESPCONN_OK)
 	{
 		return;
@@ -99,6 +102,7 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
     struct ip_info ipconfig;
 	DataStr datAnalyze;
 
+	uint16_t crcTemp;
 	char sendFlag=0;
 
     if (wifi_get_opmode() != STATION_MODE) {
@@ -119,11 +123,19 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
     }
 	else if (length < sizeof(DataStr))
 	{
+		udpDataPacket(NULL, 0, ACK_ERROR);
+		return;
+	}
+	datAnalyze.crc  = BigEndingBuf_To_U16(pusrdata);
+	crcTemp = Crc16_1021_Sum((pusrdata+2), length-2);
+	if (datAnalyze.crc != crcTemp)
+	{
+		udpDataPacket(NULL, 0, ACK_ERROR);
 		return;
 	}
 	datAnalyze.head = pusrdata[2];
-	datAnalyze.cmd = pusrdata[3];
-	datAnalyze.len = (pusrdata[4]<<8)|pusrdata[5];
+	datAnalyze.cmd  = pusrdata[3];
+	datAnalyze.len  = BigEndingBuf_To_U16(pusrdata+4);
 	os_printf("len=%d\r\n", datAnalyze.len);
 	switch(datAnalyze.cmd)
 	{
@@ -169,6 +181,29 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 			}
 			break;
 		case READ_DEVICE_PARA:
+			{
+				PARASAVE_STR paraTemp;
+				uint32_t cnt;
+				
+				if (0==os_memcmp(sysPara.deviceID, &pusrdata[6], datAnalyze.len-4))
+				{
+					cnt = BigEndingBuf_To_U32(&pusrdata[6+datAnalyze.len-4]);
+					userParaRead(&paraTemp, cnt);
+			
+					datLen = sizeof(PARASAVE_STR);
+					U16_To_BigEndingBuf(DeviceBuffer, paraTemp.startFlag);
+					os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
+					os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
+					U16_To_BigEndingBuf(&DeviceBuffer[datLen-4], paraTemp.cntTimes);
+					U16_To_BigEndingBuf(&DeviceBuffer[datLen-2], paraTemp.endFlag);
+					sendFlag = 1;
+				}
+				else
+				{
+					udpDataPacket(NULL, 0, ACK_ERROR);
+					return;
+				}
+			}
 			break;
 
 		default:
