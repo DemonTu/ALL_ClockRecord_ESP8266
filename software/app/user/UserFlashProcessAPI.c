@@ -69,7 +69,7 @@ sysTemParaInit()
 		
 		spi_flash_erase_sector(SYSPARA_START_ADDR/4096);
 		spi_flash_write(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
-		system_soft_wdt_stop();
+		system_soft_wdt_restart();
 	}
 //===============test=======================
 	//os_printf("addr=0x%x", sysPara.currentAddr);

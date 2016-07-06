@@ -38,7 +38,7 @@ LOCAL uint16_t readSensorTime;
 
 LOCAL TIME_STR startTimes;
 LOCAL TIME_STR endTimes;
-#define READSENSOR_TIMES		60;	// 单位秒
+#define READSENSOR_TIMES		1800;	// 单位秒
 /******************************************************************************
  * FunctionName : sensorParaRead_cb
  * Description  : 定时读取sensor参数
