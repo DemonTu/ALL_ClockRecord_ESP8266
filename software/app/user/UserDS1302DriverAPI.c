@@ -208,12 +208,12 @@ void Ds1302_Read_Time(void)
 
 	for(i=0;i<8;i++)
 	{           //BCD´¦Àí
-		os_printf("st=%x", time_buf[i]);
+	//	os_printf("st=%x", time_buf[i]);
 		tmp=time_buf[i]/16;
 		time_buf1[i]=time_buf[i]%16;
 		time_buf1[i]=time_buf1[i]+tmp*10;
 	}
-	os_printf("\r\n");
+	//os_printf("\r\n");
 }
 void userDS1302ReadTime(TIME_STR *time)
 {
@@ -229,18 +229,6 @@ void Ds1302_Init(void)
 	RST_CLR();			//RST½ÅÖÃµÍ
 	SCK_CLR();
     Ds1302_Write_Byte(ds1302_sec_add,0x00);
-#if 0	
-    //Ds1302_Write_Time();
-	{
-		TIME_STR timeTemp;
-		timeTemp.year   = 16;
-		timeTemp.month  = 12;
-		timeTemp.data   = 31;
-		timeTemp.hour   = 23;
-		timeTemp.minute = 59;
-		userDS1302WriteTime(&timeTemp);
-	}
-#endif
 }
 
 void ICACHE_FLASH_ATTR

@@ -38,7 +38,7 @@ LOCAL uint16_t readSensorTime;
 
 LOCAL TIME_STR startTimes;
 LOCAL TIME_STR endTimes;
-#define READSENSOR_TIMES		1800;	// 单位秒
+#define READSENSOR_TIMES		60;	// 单位秒
 /******************************************************************************
  * FunctionName : sensorParaRead_cb
  * Description  : 定时读取sensor参数
@@ -64,7 +64,6 @@ sensorParaRead_cb(uint8_t flag)
 			paraTemp.cntTimes  = sensorCnt;
 			paraTemp.endFlag   = 0x7788;
 			userParaSave(&paraTemp);
-			
 			sensorCnt = 0;
 		}
     }
@@ -91,7 +90,7 @@ sensor_20ms_cb(uint8_t flag)
         sensorCnt++;
 		readSensorTime = READSENSOR_TIMES;	// 等待没有计数超时后，完成一次参数记录		
     }
-
+	//os_printf("cnt=%d\r\n", sensorCnt);
 	gpio_pin_intr_state_set(GPIO_ID_PIN(SENSOR_IO_NUM), GPIO_PIN_INTR_NEGEDGE);
 }
 
@@ -115,7 +114,7 @@ sensorHandler(void *para)
      /* 延时20ms，去抖动 */
     os_timer_disarm(&sensor_timer);
     os_timer_setfn(&sensor_timer, (os_timer_func_t *)sensor_20ms_cb, 1);
-    os_timer_arm(&sensor_timer, 20, 0);
+    os_timer_arm(&sensor_timer, 30, 0);
 }
 
 /******************************************************************************

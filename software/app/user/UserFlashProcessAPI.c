@@ -55,19 +55,25 @@ LOCAL void ICACHE_FLASH_ATTR
 sysTemParaInit()
 {
 	uint32_t chipID = 0;
-	
+	uint8_t bufT[17]={0};
+
 	chipID = system_get_chip_id();
-	os_printf("ID=0x%x", chipID);
+	//os_printf("ID=0x%x", chipID);
 	spi_flash_read(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
 	if (sysPara.saveFlag != 0xaabbccee)
 	{
+		system_soft_wdt_stop();
 		sysPara.saveFlag    = 0xaabbccee;
 		sysPara.currentAddr = PARASVAE_START_ADDR;
 		os_memcpy(sysPara.deviceID, (uint8_t *)&chipID, 4);
 		
 		spi_flash_erase_sector(SYSPARA_START_ADDR/4096);
 		spi_flash_write(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
+		system_soft_wdt_stop();
 	}
+//===============test=======================
+	//os_printf("addr=0x%x", sysPara.currentAddr);
+//===========================================
 }
 /***************** END sysTemPara ********************************/
 
@@ -95,8 +101,10 @@ void ICACHE_FLASH_ATTR
 userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 {	
 	uint32_t readAddr;
-	if (sysPara.currentAddr <= (recordCnt*sizeof(PARASAVE_STR)))
+	if (sysPara.currentAddr < PARASVAE_START_ADDR+recordCnt*sizeof(PARASAVE_STR))
 	{
+		para = NULL;
+		os_printf("NULL1\r\n");
 		return;
 	}
 	else
@@ -104,6 +112,8 @@ userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 		readAddr = sysPara.currentAddr-recordCnt*sizeof(PARASAVE_STR);
 		if (readAddr < PARASVAE_START_ADDR)
 		{
+			para = NULL;
+			os_printf("NULL2\r\n");
 			return;
 		}
 		spi_flash_read(readAddr, (uint32 *)para, sizeof(PARASAVE_STR));

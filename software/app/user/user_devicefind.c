@@ -66,7 +66,8 @@ udpDataPacket(uint8_t *sendBuf, uint16_t len, uint8_t cmd)
 	
 	sendDeviceBuffer[2] = 0xAA;
 	sendDeviceBuffer[3] = cmd;
-	sendDeviceBuffer[4] = len;
+	//sendDeviceBuffer[4] = len;
+	U16_To_BigEndingBuf(&sendDeviceBuffer[4], len);
 	length += sizeof(DataStr);
 	if (len)
 	{
@@ -131,12 +132,12 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 	if (datAnalyze.crc != crcTemp)
 	{
 		udpDataPacket(NULL, 0, ACK_ERROR);
+		os_printf("crc=0x%x", crcTemp);
 		return;
 	}
 	datAnalyze.head = pusrdata[2];
 	datAnalyze.cmd  = pusrdata[3];
 	datAnalyze.len  = BigEndingBuf_To_U16(pusrdata+4);
-	os_printf("len=%d\r\n", datAnalyze.len);
 	switch(datAnalyze.cmd)
 	{
 		case FIND_DEVICE:
@@ -184,10 +185,10 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 			{
 				PARASAVE_STR paraTemp;
 				uint32_t cnt;
-				
-				if (0==os_memcmp(sysPara.deviceID, &pusrdata[6], datAnalyze.len-4))
+
+				cnt = BigEndingBuf_To_U32(&pusrdata[6+datAnalyze.len-4]);
+				if (0==os_memcmp(sysPara.deviceID, &pusrdata[6], datAnalyze.len-4) && cnt)
 				{
-					cnt = BigEndingBuf_To_U32(&pusrdata[6+datAnalyze.len-4]);
 					userParaRead(&paraTemp, cnt);
 			
 					datLen = sizeof(PARASAVE_STR);
