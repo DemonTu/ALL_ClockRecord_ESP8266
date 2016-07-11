@@ -20,6 +20,10 @@
 #include "UserFlashProcessAPI.h"
 
 //=======================================================
+#define POWERDOWN_IO_MUX     PERIPHS_IO_MUX_GPIO5_U
+#define POWERDOWN_IO_NUM     5
+#define POWERDOWN_IO_FUNC    FUNC_GPIO5
+
 #if 1
 #define SENSOR_IO_MUX     PERIPHS_IO_MUX_GPIO4_U
 #define SENSOR_IO_NUM     4
@@ -103,18 +107,44 @@ sensor_20ms_cb(uint8_t flag)
 LOCAL void ICACHE_FLASH_ATTR
 sensorHandler(void *para)
 {
+	PARASAVE_STR paraTemp;
     uint32 gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
+	
+	if (gpio_status & BIT(SENSOR_IO_NUM))
+	{
+		//disable interrupt
+		gpio_pin_intr_state_set(GPIO_ID_PIN(SENSOR_IO_NUM), GPIO_PIN_INTR_DISABLE);
 
-	//disable interrupt
-	gpio_pin_intr_state_set(GPIO_ID_PIN(SENSOR_IO_NUM), GPIO_PIN_INTR_DISABLE);
-
+	     /* 延时20ms，去抖动 */
+	    os_timer_disarm(&sensor_timer);
+	    os_timer_setfn(&sensor_timer, (os_timer_func_t *)sensor_20ms_cb, 1);
+	    os_timer_arm(&sensor_timer, 30, 0);
+	}
+	else if (gpio_status & BIT(POWERDOWN_IO_NUM))
+	{
+		//disable interrupt
+		gpio_pin_intr_state_set(GPIO_ID_PIN(POWERDOWN_IO_NUM), GPIO_PIN_INTR_DISABLE);
+		if (sensorCnt)
+		{
+			/* 系统断电的时间 */
+			userDS1302ReadTime(&endTimes);
+			
+			/* 记录保存参数 */
+			paraTemp.startFlag = 0x5566;
+			paraTemp.startTime = startTimes;
+			paraTemp.endTime   = endTimes;
+			paraTemp.cntTimes  = sensorCnt;
+			paraTemp.endFlag   = 0x7788;
+			userParaSave(&paraTemp);
+			sensorCnt = 0;
+			readSensorTime = 0;
+		}
+	}
+	else
+	{
+	}
 	//clear interrupt status
 	GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, gpio_status);
-
-     /* 延时20ms，去抖动 */
-    os_timer_disarm(&sensor_timer);
-    os_timer_setfn(&sensor_timer, (os_timer_func_t *)sensor_20ms_cb, 1);
-    os_timer_arm(&sensor_timer, 30, 0);
 }
 
 /******************************************************************************
@@ -129,6 +159,9 @@ user_SensorDetection_Init(void)
     PIN_FUNC_SELECT(SENSOR_IO_MUX, SENSOR_IO_FUNC);
 	GPIO_DIS_OUTPUT(GPIO_ID_PIN(SENSOR_IO_NUM));
 
+	PIN_FUNC_SELECT(POWERDOWN_IO_MUX, POWERDOWN_IO_FUNC);
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(POWERDOWN_IO_NUM));
+
 	
 	ETS_GPIO_INTR_ATTACH(sensorHandler, NULL);
 	
@@ -136,6 +169,7 @@ user_SensorDetection_Init(void)
 
     //enable interrupt
     gpio_pin_intr_state_set(GPIO_ID_PIN(SENSOR_IO_NUM), GPIO_PIN_INTR_NEGEDGE);
+    gpio_pin_intr_state_set(GPIO_ID_PIN(POWERDOWN_IO_NUM), GPIO_PIN_INTR_NEGEDGE);
 
     ETS_GPIO_INTR_ENABLE();	
 
