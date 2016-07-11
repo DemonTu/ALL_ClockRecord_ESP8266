@@ -1,12 +1,12 @@
 /******************************************************************************
- * Copyright 2013-2014 Espressif Systems (Wuxi)
+ * Copyright 2015-2016  CHRTQY system (TuQianYin)
  *
  * FileName: user_devicefind.c
  *
  * Description: Find your hardware's information while working any mode.
  *
  * Modification history:
- *     2014/3/12, v1.0 create this file.
+ *     2016/6/12, v1.0 create this file.
 *******************************************************************************/
 #include "ets_sys.h"
 #include "os_type.h"
