@@ -7,7 +7,7 @@ boot=new
 app=1
 spi_speed=80
 spi_mode=DOUT
-spi_size_map=6
+spi_size_map=5
 
 echo ""
 

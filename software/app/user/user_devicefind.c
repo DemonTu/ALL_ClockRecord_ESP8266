@@ -189,14 +189,19 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 				cnt = BigEndingBuf_To_U32(&pusrdata[6+datAnalyze.len-4]);
 				if (0==os_memcmp(sysPara.deviceID, &pusrdata[6], datAnalyze.len-4) && cnt)
 				{
-					userParaRead(&paraTemp, cnt);
-			
-					datLen = sizeof(PARASAVE_STR);
-					U16_To_BigEndingBuf(DeviceBuffer, paraTemp.startFlag);
-					os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
-					os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
-					U16_To_BigEndingBuf(&DeviceBuffer[datLen-4], paraTemp.cntTimes);
-					U16_To_BigEndingBuf(&DeviceBuffer[datLen-2], paraTemp.endFlag);
+					if (userParaRead(&paraTemp, cnt))
+					{
+						datLen = sizeof(PARASAVE_STR);
+						U16_To_BigEndingBuf(DeviceBuffer, paraTemp.startFlag);
+						os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
+						os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
+						U16_To_BigEndingBuf(&DeviceBuffer[datLen-4], paraTemp.cntTimes);
+						U16_To_BigEndingBuf(&DeviceBuffer[datLen-2], paraTemp.endFlag);
+					}
+					else
+					{
+						datLen = 0;
+					}
 					sendFlag = 1;
 				}
 				else

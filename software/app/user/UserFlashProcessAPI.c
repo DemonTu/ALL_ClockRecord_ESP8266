@@ -21,10 +21,11 @@
 
 /******************************************************************* 
 * 	flash size 4MByte 
-*	前2048K-16K 为代码区 
-*	接下去2048k为用户参数区 
+*	前1024K-16K 为代码区 
+*	接下去3072k为用户参数区 
 *   最后16k为系统参数区 
 *******************************************************************/ 
+#define SENSORCNTTEMP_ADDR		((1024-16)*1024)
 #define SYSPARA_START_ADDR		((4096-16-2048)*1024)
 #define PARASVAE_START_ADDR		(SYSPARA_START_ADDR+16*1024)
 #define PARASVAE_END_ADDR		(PARASVAE_START_ADDR+2048*1024)
@@ -56,6 +57,7 @@ sysTemParaInit()
 {
 	uint32_t chipID = 0;
 	uint8_t bufT[17]={0};
+	PARASAVE_STR tempSaveCnt;
 
 	chipID = system_get_chip_id();
 	//os_printf("ID=0x%x", chipID);
@@ -70,6 +72,17 @@ sysTemParaInit()
 		spi_flash_erase_sector(SYSPARA_START_ADDR/4096);
 		spi_flash_write(SYSPARA_START_ADDR, (uint32 *)&sysPara, sizeof(SYSTEMPARA_STR));
 		system_soft_wdt_restart();
+	}
+// 读取断电记录	
+	spi_flash_read(SENSORCNTTEMP_ADDR, (uint32 *)&tempSaveCnt, sizeof(PARASAVE_STR));
+	if (tempSaveCnt.startFlag==0x5566 && tempSaveCnt.endFlag==0x7788)
+	{
+		userParaSave(&tempSaveCnt);
+		spi_flash_erase_sector(SENSORCNTTEMP_ADDR/4096);
+	}
+	else if (tempSaveCnt.startFlag != 0xffff)
+	{
+		spi_flash_erase_sector(SENSORCNTTEMP_ADDR/4096);
 	}
 //===============test=======================
 	//os_printf("addr=0x%x", sysPara.currentAddr);
@@ -97,7 +110,7 @@ userParaSave(PARASAVE_STR *para)
 	sysTemParaSave();
 }
 
-void ICACHE_FLASH_ATTR
+uint8_t ICACHE_FLASH_ATTR
 userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 {	
 	uint32_t readAddr;
@@ -105,7 +118,7 @@ userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 	{
 		para = NULL;
 		os_printf("NULL1\r\n");
-		return;
+		return 0;
 	}
 	else
 	{
@@ -114,11 +127,19 @@ userParaRead(PARASAVE_STR *para, uint32_t recordCnt)
 		{
 			para = NULL;
 			os_printf("NULL2\r\n");
-			return;
+			return 0;
 		}
 		spi_flash_read(readAddr, (uint32 *)para, sizeof(PARASAVE_STR));
 	}
+	return 1;
 }
+
+void ICACHE_FLASH_ATTR
+userTempParaSave(PARASAVE_STR *para)
+{
+	spi_flash_write(SENSORCNTTEMP_ADDR, (uint32 *)para, sizeof(PARASAVE_STR));
+}
+
 
 uint32_t ICACHE_FLASH_ATTR
 UserGetAllRecordNum(void)

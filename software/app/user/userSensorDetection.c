@@ -135,10 +135,11 @@ sensorHandler(void *para)
 			paraTemp.endTime   = endTimes;
 			paraTemp.cntTimes  = sensorCnt;
 			paraTemp.endFlag   = 0x7788;
-			userParaSave(&paraTemp);
+			userTempParaSave(&paraTemp);
 			sensorCnt = 0;
 			readSensorTime = 0;
 		}
+		os_printf("cnt=%d\r\n", sensorCnt);
 	}
 	else
 	{
