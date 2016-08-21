@@ -146,8 +146,9 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 				/* 初始通信用 */
 				os_memcpy(DeviceBuffer, sysPara.deviceID, sizeof(sysPara.deviceID));		
 				os_memcpy(&DeviceBuffer[sizeof(sysPara.deviceID)], hwaddr, 6);		
-				os_memcpy(&DeviceBuffer[sizeof(sysPara.deviceID)+6], &ipconfig.ip, 4);		
-				datLen = sizeof(sysPara.deviceID)+10;
+				//os_memcpy(&DeviceBuffer[sizeof(sysPara.deviceID)+6], &ipconfig.ip, 4);		
+				datLen = os_sprintf(&DeviceBuffer[sizeof(sysPara.deviceID)+6], "%d.%d.%d.%d", (ipconfig.ip.addr&0x000000ff),  ((ipconfig.ip.addr&0x0000ff00)>>8), ((ipconfig.ip.addr&0x00ff0000)>>16), (ipconfig.ip.addr>>24));
+				datLen += sizeof(sysPara.deviceID)+6;
 				sendFlag = 1;
 			}
 			else if ((datAnalyze.len == sizeof(sysPara.deviceID)) &&
@@ -155,8 +156,9 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 			{
 				/* 应答 */
 				os_memcpy(&DeviceBuffer[0], hwaddr, 6);		
-				os_memcpy(&DeviceBuffer[6], &ipconfig.ip, 4);	
-				datLen = 10;
+				//os_memcpy(&DeviceBuffer[6], &ipconfig.ip, 4);	
+				datLen = os_sprintf(&DeviceBuffer[6], "%d.%d.%d.%d", (ipconfig.ip.addr&0x000000ff),  ((ipconfig.ip.addr&0x0000ff00)>>8), ((ipconfig.ip.addr&0x00ff0000)>>16), (ipconfig.ip.addr>>24));
+				datLen += 6;
 				sendFlag = 1;
 			}
 			break;
@@ -170,11 +172,11 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 			{
 				TIME_STR timeTemp;
 				
-				timeTemp.year   = pusrdata[sizeof(DataStr)];
-				timeTemp.month  = pusrdata[sizeof(DataStr)+1];
-				timeTemp.data   = pusrdata[sizeof(DataStr)+2];
-				timeTemp.hour   = pusrdata[sizeof(DataStr)+3];
-				timeTemp.minute = pusrdata[sizeof(DataStr)+4];
+				timeTemp.year   = (pusrdata[sizeof(DataStr)]-0x30)*10+(pusrdata[sizeof(DataStr)+1]-0x30);
+				timeTemp.month  = (pusrdata[sizeof(DataStr)+3]-0x30)*10+(pusrdata[sizeof(DataStr)+4]-0x30);
+				timeTemp.data   = (pusrdata[sizeof(DataStr)+6]-0x30)*10+(pusrdata[sizeof(DataStr)+7]-0x30);
+				timeTemp.hour   = (pusrdata[sizeof(DataStr)+9]-0x30)*10+(pusrdata[sizeof(DataStr)+10]-0x30);
+				timeTemp.minute = (pusrdata[sizeof(DataStr)+12]-0x30)*10+(pusrdata[sizeof(DataStr)+13]-0x30);
 
 				userDS1302WriteTime(&timeTemp);
 				datLen = 0;
@@ -191,12 +193,16 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 				{
 					if (userParaRead(&paraTemp, cnt))
 					{
-						datLen = sizeof(PARASAVE_STR);
 						U16_To_BigEndingBuf(DeviceBuffer, paraTemp.startFlag);
-						os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
-						os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
-						U16_To_BigEndingBuf(&DeviceBuffer[datLen-4], paraTemp.cntTimes);
-						U16_To_BigEndingBuf(&DeviceBuffer[datLen-2], paraTemp.endFlag);
+						datLen += 2;
+						datLen += os_sprintf(&DeviceBuffer[2], "%02d-%02d-%02d %02d:%02d", paraTemp.startTime.year,paraTemp.startTime.month,paraTemp.startTime.data,paraTemp.startTime.hour,paraTemp.startTime.minute);
+						//os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
+						datLen += os_sprintf(&DeviceBuffer[2], "%02d-%02d-%02d %02d:%02d", paraTemp.endTime.year,paraTemp.endTime.month,paraTemp.endTime.data,paraTemp.endTime.hour,paraTemp.endTime.minute);
+						//os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
+						U16_To_BigEndingBuf(&DeviceBuffer[datLen], paraTemp.cntTimes);
+						datLen += 2;
+						U16_To_BigEndingBuf(&DeviceBuffer[datLen], paraTemp.endFlag);
+						datLen += 2;
 					}
 					else
 					{
