@@ -23,9 +23,6 @@
 #include "userSensorDetection.h"
 
 #define DISCONNECT_TIME				15 // 30s 
-void user_rf_pre_init(void)
-{
-}
 
 void ICACHE_FLASH_ATTR
 user_set_station_config(void)
@@ -42,9 +39,8 @@ user_set_station_config(void)
 
 void wifi_handle_event_cb(System_Event_t *evt)
 {
-	//os_printf("event %x\n", evt->event);
 	LOCAL uint8_t disconnectCnt = DISCONNECT_TIME;
-	
+	//os_printf("event %x\n", evt->event);	
 	switch (evt->event) {
 		case EVENT_STAMODE_CONNECTED:
 			disconnectCnt = DISCONNECT_TIME;
@@ -61,8 +57,7 @@ void wifi_handle_event_cb(System_Event_t *evt)
 			{
 				if (--disconnectCnt == 0)
 				{
-					os_printf("event %x\n", evt->event);
-				//	wifi_station_set_reconnect_policy(FALSE); // 停止搜索，减少功耗
+					wifi_station_disconnect();
 				}
 			}
 			break;
@@ -80,7 +75,7 @@ void wifi_handle_event_cb(System_Event_t *evt)
 			break;
 		case EVENT_SOFTAPMODE_STACONNECTED:
 			os_printf("station: " MACSTR "join, AID = %d\n",
-				MAC2STR(evt->event_info.sta_connected.mac),
+			MAC2STR(evt->event_info.sta_connected.mac),
 			evt->event_info.sta_connected.aid);
 			break;
 		case EVENT_SOFTAPMODE_STADISCONNECTED:
@@ -115,11 +110,12 @@ void user_init(void)
 	
 //=======================================================
 	/* 设置WiFi为STA模式，连接指定的AP */
-	wifi_set_opmode(STATION_MODE);
+	
+	wifi_set_opmode_current(STATION_MODE);
 	user_set_station_config();
 	wifi_set_event_handler_cb(wifi_handle_event_cb);
 	
-    os_printf("sta=%d\r\n", wifi_get_opmode());
+    os_printf("sta=%d,name=%s, %d\r\n", wifi_get_opmode(), wifi_station_get_hostname(),wifi_station_get_auto_connect());
 //========================================================	
     /*Establish a udp socket to receive local device detect info.*/
     /*Listen to the port 1025, as well as udp broadcast.

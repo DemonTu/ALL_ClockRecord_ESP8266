@@ -42,7 +42,7 @@ LOCAL uint16_t readSensorTime;
 
 LOCAL TIME_STR startTimes;
 LOCAL TIME_STR endTimes;
-#define READSENSOR_TIMES		1800;	// 单位秒
+#define READSENSOR_TIMES		1200;	// 单位秒
 /******************************************************************************
  * FunctionName : sensorParaRead_cb
  * Description  : 定时读取sensor参数
@@ -61,7 +61,6 @@ sensorParaRead_cb(uint8_t flag)
 			/* 结束计数的时间 */
 
 			userDS1302ReadTime(&endTimes);
-			//os_printf("end=20%02d/%d/%d  %02d:%02d\r\n", endTimes.year, endTimes.month, endTimes.data, endTimes.hour, endTimes.minute);
 			/* 记录保存参数 */
 			paraTemp.startFlag = 0x5566;
 			paraTemp.startTime = startTimes;
