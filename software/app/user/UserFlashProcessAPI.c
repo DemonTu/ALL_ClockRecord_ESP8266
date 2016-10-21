@@ -26,7 +26,7 @@
 *   最后16k为系统参数区 
 *******************************************************************/ 
 #define SENSORCNTTEMP_ADDR		((1024-16)*1024)
-#define SYSPARA_START_ADDR		((4096-16-2048)*1024)
+#define SYSPARA_START_ADDR		(SENSORCNTTEMP_ADDR+16*1024)
 #define PARASVAE_START_ADDR		(SYSPARA_START_ADDR+16*1024)
 #define PARASVAE_END_ADDR		(PARASVAE_START_ADDR+2048*1024)
 
@@ -96,6 +96,12 @@ sysTemParaInit()
 *提供所有记录可查询, 需要传入将查询的记录数目，获取最新的记录
 *
 *******************************************************************/
+void ICACHE_FLASH_ATTR
+userParaErase(void)
+{
+	sysPara.currentAddr = PARASVAE_START_ADDR;
+	sysTemParaSave();
+}
 
 void ICACHE_FLASH_ATTR
 userParaSave(PARASAVE_STR *para)
@@ -167,7 +173,6 @@ UserFlashProcess(uint8_t flag)
 		GPIO_OUTPUT_SET(GPIO_ID_PIN(RFID_LED1_IO_NUM),0);
 		flashFlag = 1;
 	}
-
 }
 
 /******************************************************************************

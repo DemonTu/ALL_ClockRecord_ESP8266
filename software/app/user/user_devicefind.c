@@ -44,6 +44,7 @@ typedef struct
 #define SET_DEVICE_ID		0x81
 #define SYNC_SYSTEM_TIME	0x82
 #define READ_DEVICE_PARA	0x83
+#define ERASE_DEVICE_PARA	0x84
 
 #define ACK_OK				0x10
 #define ACK_ERROR			0x11
@@ -195,9 +196,9 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 					{
 						U16_To_BigEndingBuf(DeviceBuffer, paraTemp.startFlag);
 						datLen += 2;
-						datLen += os_sprintf(&DeviceBuffer[2], "%02d-%02d-%02d %02d:%02d", paraTemp.startTime.year,paraTemp.startTime.month,paraTemp.startTime.data,paraTemp.startTime.hour,paraTemp.startTime.minute);
+						datLen += os_sprintf(&DeviceBuffer[datLen], "%02d-%02d-%02d %02d:%02d", paraTemp.startTime.year,paraTemp.startTime.month,paraTemp.startTime.data,paraTemp.startTime.hour,paraTemp.startTime.minute);
 						//os_memcpy(&DeviceBuffer[2], &paraTemp.startTime, sizeof(TIME_STR));
-						datLen += os_sprintf(&DeviceBuffer[2], "%02d-%02d-%02d %02d:%02d", paraTemp.endTime.year,paraTemp.endTime.month,paraTemp.endTime.data,paraTemp.endTime.hour,paraTemp.endTime.minute);
+						datLen += os_sprintf(&DeviceBuffer[datLen], "%02d-%02d-%02d %02d:%02d", paraTemp.endTime.year,paraTemp.endTime.month,paraTemp.endTime.data,paraTemp.endTime.hour,paraTemp.endTime.minute);
 						//os_memcpy(&DeviceBuffer[sizeof(TIME_STR)+2], &paraTemp.endTime, sizeof(TIME_STR));
 						U16_To_BigEndingBuf(&DeviceBuffer[datLen], paraTemp.cntTimes);
 						datLen += 2;
@@ -217,7 +218,13 @@ user_devicefind_recv(void *arg, char *pusrdata, unsigned short length)
 				}
 			}
 			break;
-
+		case ERASE_DEVICE_PARA:
+			{
+				userParaErase();
+				datLen = 0;
+				sendFlag = 1;
+			}
+			break;
 		default:
 			break;
 	}

@@ -34,8 +34,8 @@ LOCAL os_timer_t DSPro_timer;
 #define RST_SET()		GPIO_OUTPUT_SET(GPIO_ID_PIN(DS1302_RST_IO_NUM),1)//电平置高
 
 
-unsigned char time_buf1[8] = {20,10,6,5,12,55,00,6};  //空年月日时分秒周
-unsigned char time_buf[8] ;                           //空年月日时分秒周
+volatile unsigned char time_buf1[8] = {20,10,6,5,12,55,00,6};  //空年月日时分秒周
+volatile unsigned char time_buf[8] ;                           //空年月日时分秒周
 //===============================================
 LOCAL ICACHE_FLASH_ATTR
 I2C_Gpio_Init(void)
@@ -106,7 +106,8 @@ Ds1302_Write_Byte(unsigned char addr, unsigned char d)
            从DS1302读出一字节数据
 ------------------------------------------------*/
 
-unsigned char Ds1302_Read_Byte(unsigned char addr) 
+unsigned char ICACHE_FLASH_ATTR
+Ds1302_Read_Byte(unsigned char addr) 
 {
 
 	unsigned char i;
@@ -158,7 +159,8 @@ unsigned char Ds1302_Read_Byte(unsigned char addr)
 /*------------------------------------------------
            向DS1302写入时钟数据
 ------------------------------------------------*/
-void Ds1302_Write_Time(void) 
+void ICACHE_FLASH_ATTR
+Ds1302_Write_Time(void) 
 {
      
     unsigned char i,tmp;
@@ -184,7 +186,8 @@ void Ds1302_Write_Time(void)
 
 	Ds1302_Write_Byte(ds1302_control_add,0x80);			//打开写保护 
 }
-void userDS1302WriteTime(TIME_STR *time)
+void ICACHE_FLASH_ATTR
+userDS1302WriteTime(TIME_STR *time)
 {
 	os_memcpy(&time_buf1[1], (uint8_t *)time, sizeof(TIME_STR));
 	time_buf[sizeof(TIME_STR)+1] = 0;
@@ -193,7 +196,8 @@ void userDS1302WriteTime(TIME_STR *time)
 /*------------------------------------------------
            从DS1302读出时钟数据
 ------------------------------------------------*/
-void Ds1302_Read_Time(void)  
+void ICACHE_FLASH_ATTR
+Ds1302_Read_Time(void)  
 { 
    	unsigned char i,tmp;
 	
@@ -208,14 +212,15 @@ void Ds1302_Read_Time(void)
 
 	for(i=0;i<8;i++)
 	{           //BCD处理
-	//	os_printf("st=%x", time_buf[i]);
+		os_printf("st=%x", time_buf[i]);
 		tmp=time_buf[i]/16;
 		time_buf1[i]=time_buf[i]%16;
 		time_buf1[i]=time_buf1[i]+tmp*10;
 	}
 	//os_printf("\r\n");
 }
-void userDS1302ReadTime(TIME_STR *time)
+void ICACHE_FLASH_ATTR
+userDS1302ReadTime(TIME_STR *time)
 {
 	Ds1302_Read_Time();
 	os_memcpy((uint8_t *)time, &time_buf1[1], sizeof(TIME_STR));
@@ -223,7 +228,8 @@ void userDS1302ReadTime(TIME_STR *time)
 /*------------------------------------------------
                 DS1302初始化
 ------------------------------------------------*/
-void Ds1302_Init(void)
+void ICACHE_FLASH_ATTR
+Ds1302_Init(void)
 {
 	
 	RST_CLR();			//RST脚置低

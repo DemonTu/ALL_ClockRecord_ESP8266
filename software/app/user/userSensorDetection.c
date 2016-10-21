@@ -59,8 +59,9 @@ sensorParaRead_cb(uint8_t flag)
 		if (--readSensorTime == 0)		
 		{
 			/* 结束计数的时间 */
+
 			userDS1302ReadTime(&endTimes);
-			
+			//os_printf("end=20%02d/%d/%d  %02d:%02d\r\n", endTimes.year, endTimes.month, endTimes.data, endTimes.hour, endTimes.minute);
 			/* 记录保存参数 */
 			paraTemp.startFlag = 0x5566;
 			paraTemp.startTime = startTimes;
@@ -124,6 +125,7 @@ sensorHandler(void *para)
 	{
 		//disable interrupt
 		gpio_pin_intr_state_set(GPIO_ID_PIN(POWERDOWN_IO_NUM), GPIO_PIN_INTR_DISABLE);
+		os_printf("Tcnt=%d\r\n", sensorCnt);
 		if (sensorCnt)
 		{
 			/* 系统断电的时间 */
@@ -136,10 +138,11 @@ sensorHandler(void *para)
 			paraTemp.cntTimes  = sensorCnt;
 			paraTemp.endFlag   = 0x7788;
 			userTempParaSave(&paraTemp);
+			//os_printf("cnt=%d\r\n", sensorCnt);
 			sensorCnt = 0;
 			readSensorTime = 0;
 		}
-		os_printf("cnt=%d\r\n", sensorCnt);
+		
 	}
 	else
 	{

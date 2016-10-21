@@ -23,6 +23,8 @@ void userFlashPro_Init(void);
 void sysTemParaSave(void);
 
 void userParaSave(PARASAVE_STR *para);
+void userParaErase(void);
+
 uint8_t userParaRead(PARASAVE_STR *para, uint32_t recordCnt);
 void userTempParaSave(PARASAVE_STR *para);
 uint32_t UserGetAllRecordNum(void);

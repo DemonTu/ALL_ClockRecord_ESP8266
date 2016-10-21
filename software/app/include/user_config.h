@@ -5,6 +5,7 @@
 
 #define USE_OPTIMIZE_PRINTF
 
+#define SW_VERSION		"FJXMYKD_WIFI_RECORD_V1.000"
 
 #endif
 

@@ -22,7 +22,7 @@
 #include "UserKeyDeviceAPI.h"
 #include "userSensorDetection.h"
 
-
+#define DISCONNECT_TIME				15 // 30s 
 void user_rf_pre_init(void)
 {
 }
@@ -34,25 +34,37 @@ user_set_station_config(void)
 	struct station_config stationConf;
 	os_memset(&stationConf, 0, sizeof(stationConf));
 	stationConf.bssid_set = 0; //need not check MAC address of AP
-	os_memcpy(&stationConf.ssid, "tuqianyin", 9);
-	os_memcpy(&stationConf.password, "tu200906", 8);
+	os_memcpy(&stationConf.ssid, "FJXMYKD", 7);
+	os_memcpy(&stationConf.password, "FJXMYKD456123", 13);
 
-	wifi_station_set_config(&stationConf);
+	wifi_station_set_config_current(&stationConf);
 }
 
 void wifi_handle_event_cb(System_Event_t *evt)
 {
-	os_printf("event %x\n", evt->event);
+	//os_printf("event %x\n", evt->event);
+	LOCAL uint8_t disconnectCnt = DISCONNECT_TIME;
+	
 	switch (evt->event) {
 		case EVENT_STAMODE_CONNECTED:
+			disconnectCnt = DISCONNECT_TIME;
 			os_printf("connect to ssid %s, channel %d\n",
 			evt->event_info.connected.ssid,
 			evt->event_info.connected.channel);
 			break;
 		case EVENT_STAMODE_DISCONNECTED:
-			os_printf("disconnect from ssid %s, reason %d\n",
+			os_printf("disconnect from ssid %s, reason %d %d\n", 
 			evt->event_info.disconnected.ssid,
-			evt->event_info.disconnected.reason);
+			evt->event_info.disconnected.reason,
+			disconnectCnt);
+			if (disconnectCnt)
+			{
+				if (--disconnectCnt == 0)
+				{
+					os_printf("event %x\n", evt->event);
+				//	wifi_station_set_reconnect_policy(FALSE); // 停止搜索，减少功耗
+				}
+			}
 			break;
 		case EVENT_STAMODE_AUTHMODE_CHANGE:
 			os_printf("mode: %d -> %d\n",
@@ -103,9 +115,9 @@ void user_init(void)
 	
 //=======================================================
 	/* 设置WiFi为STA模式，连接指定的AP */
+	wifi_set_opmode(STATION_MODE);
 	user_set_station_config();
 	wifi_set_event_handler_cb(wifi_handle_event_cb);
-	wifi_set_opmode(STATION_MODE);
 	
     os_printf("sta=%d\r\n", wifi_get_opmode());
 //========================================================	
